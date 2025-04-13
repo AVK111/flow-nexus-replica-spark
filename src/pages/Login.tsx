@@ -1,23 +1,27 @@
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Link, Navigate } from "react-router-dom";
-import { LogIn, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { LogIn, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { user, signIn, signUp } = useAuth();
+  const [isSignUp, setIsSignUp] = useState(false);
+  const { signIn, signUp } = useAuth();
 
-  const handleAuth = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
@@ -29,11 +33,6 @@ export default function Login() {
             title: "Sign Up Failed",
             description: error.message,
             variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Sign Up Successful",
-            description: "Please check your email for verification if required.",
           });
         }
       } else {
@@ -58,81 +57,70 @@ export default function Login() {
     }
   };
 
-  // Redirect if user is already logged in
-  if (user) {
-    return <Navigate to="/" />;
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#46b1e6] to-[#84d1f5] flex flex-col">
-      {/* Header/Navigation */}
-      <header className="w-full bg-[#1a1a2e] text-white p-4">
-        <div className="container mx-auto flex justify-between items-center">
-          <div className="flex items-center">
-            <img 
-              src="/lovable-uploads/12497af1-e61d-4455-b45d-61f98851c409.png" 
-              alt="FranchiGo Logo" 
-              className="h-12" 
-            />
-          </div>
-          <nav className="hidden md:flex items-center space-x-8">
-            <a href="#" className="text-white hover:text-blue-200 transition-colors">Explore</a>
-            <a href="#" className="text-white hover:text-blue-200 transition-colors">About</a>
-            <a href="#" className="text-white hover:text-blue-200 transition-colors">For Franchisors</a>
-            <Button variant="ghost" size="icon">
-              <Search className="h-5 w-5" />
-            </Button>
-          </nav>
-          <div className="md:hidden">
-            <Button variant="ghost" className="text-white">
-              Menu
-            </Button>
-          </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#3B1E77] to-[#7E69AB] p-4">
+      <div className="w-full max-w-md">
+        <div className="flex justify-center mb-8">
+          <img 
+            src="/lovable-uploads/de7301c9-7c27-49e7-935c-54594b245e59.png" 
+            alt="FranchiGo Logo" 
+            className="h-20" 
+          />
         </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="flex-1 flex justify-center items-center p-4 md:p-8">
-        <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">
-              {isSignUp ? 'Create an account' : 'Login to your account'}
+        
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle className="text-2xl text-center text-[#3B1E77]">
+              {isSignUp ? "Create Account" : "Welcome Back"}
             </CardTitle>
             <CardDescription className="text-center">
               {isSignUp 
-                ? 'Enter your email and password to create an account' 
-                : 'Enter your email and password to login to your account'}
+                ? "Sign up to start managing your franchise network" 
+                : "Login to your FranchiGo dashboard"}
             </CardDescription>
           </CardHeader>
-          <form onSubmit={handleAuth}>
-            <CardContent className="space-y-4">
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input 
-                  id="email" 
-                  type="email" 
-                  placeholder="your@email.com" 
+                <label htmlFor="email" className="text-sm font-medium">
+                  Email
+                </label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  className="w-full"
+                  disabled={isLoading}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input 
-                  id="password" 
-                  type="password" 
-                  placeholder="••••••••" 
+                <label htmlFor="password" className="text-sm font-medium">
+                  Password
+                </label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  className="w-full"
+                  disabled={isLoading}
                 />
               </div>
-            </CardContent>
-            <CardFooter className="flex flex-col space-y-4">
-              <Button 
-                type="submit" 
-                className="w-full bg-[#32a8df] hover:bg-[#2994c6]"
+              {!isSignUp && (
+                <div className="text-right">
+                  <a href="#" className="text-sm text-[#3B1E77] hover:underline">
+                    Forgot password?
+                  </a>
+                </div>
+              )}
+              <Button
+                type="submit"
+                className="w-full bg-[#3B1E77] hover:bg-[#210F42]"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -142,24 +130,31 @@ export default function Login() {
                 ) : isSignUp ? (
                   'Create Account'
                 ) : (
-                  <>
-                    <LogIn className="mr-2 h-4 w-4" /> Login
-                  </>
+                  <span className="flex items-center gap-2">
+                    <LogIn className="h-4 w-4" /> Login
+                  </span>
                 )}
               </Button>
-              <div className="text-center">
-                <Button 
-                  variant="link" 
-                  type="button"
-                  onClick={() => setIsSignUp(!isSignUp)}
-                >
-                  {isSignUp ? 'Already have an account? Login' : 'Don\'t have an account? Sign Up'}
-                </Button>
-              </div>
-            </CardFooter>
-          </form>
+            </form>
+          </CardContent>
+          <CardFooter className="flex flex-col gap-4">
+            <div className="text-center w-full">
+              <Button
+                variant="link"
+                className="text-[#3B1E77]"
+                onClick={() => setIsSignUp(!isSignUp)}
+              >
+                {isSignUp
+                  ? "Already have an account? Login"
+                  : "Don't have an account? Sign up"}
+              </Button>
+            </div>
+            <div className="text-xs text-center text-muted-foreground">
+              By continuing, you agree to FranchiGo's Terms of Service and Privacy Policy.
+            </div>
+          </CardFooter>
         </Card>
-      </main>
+      </div>
     </div>
   );
 }

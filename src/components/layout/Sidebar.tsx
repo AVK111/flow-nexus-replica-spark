@@ -31,18 +31,18 @@ export default function Sidebar() {
   
   return (
     <div className={cn(
-      "bg-white shadow-sm h-screen flex flex-col border-r transition-all duration-300",
+      "bg-gradient-to-b from-[#3B1E77] to-[#210F42] text-white shadow-sm h-screen flex flex-col border-r transition-all duration-300",
       collapsed ? "w-[70px]" : "w-[250px]"
     )}>
-      <div className="p-4 flex justify-between items-center border-b">
+      <div className="p-4 flex justify-between items-center border-b border-white/10">
         {!collapsed && (
-          <div className="font-bold text-xl text-primary">FranchiGo</div>
+          <div className="font-bold text-xl text-white">FranchiGo</div>
         )}
         <Button 
           variant="ghost" 
           size="icon" 
           onClick={() => setCollapsed(!collapsed)}
-          className="ml-auto"
+          className="ml-auto text-white hover:bg-white/10"
         >
           <Menu size={20} />
         </Button>
@@ -54,8 +54,8 @@ export default function Sidebar() {
             key={link.path}
             to={link.path}
             className={cn(
-              "sidebar-item",
-              location.pathname === link.path && "active"
+              "sidebar-item text-white/80 hover:text-white",
+              location.pathname === link.path && "active bg-white/20 hover:bg-white/20 text-white"
             )}
           >
             <link.icon size={20} />
@@ -64,10 +64,10 @@ export default function Sidebar() {
         ))}
       </div>
       
-      <div className="p-4 border-t mt-auto">
+      <div className="p-4 border-t border-white/10 mt-auto">
         <Button 
           variant="ghost" 
-          className="w-full justify-start gap-2"
+          className="w-full justify-start gap-2 text-white/80 hover:text-white hover:bg-white/10"
           onClick={() => signOut()}
         >
           <LogOut size={20} />

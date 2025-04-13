@@ -24,7 +24,12 @@ export default function Header() {
 
   return (
     <header className="h-16 px-6 border-b bg-white flex items-center justify-between">
-      <div className="flex items-center w-1/3">
+      <div className="flex items-center gap-2 w-1/3">
+        <img 
+          src="/lovable-uploads/de7301c9-7c27-49e7-935c-54594b245e59.png" 
+          alt="FranchiGo Logo" 
+          className="h-8 md:block hidden" 
+        />
         <div className="relative w-full max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
           <Input
