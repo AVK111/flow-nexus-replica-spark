@@ -8,6 +8,7 @@ import { Link, Navigate } from "react-router-dom";
 import { LogIn, Search } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -45,6 +46,13 @@ export default function Login() {
           });
         }
       }
+    } catch (error) {
+      console.error("Authentication error:", error);
+      toast({
+        title: "Authentication Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -128,7 +136,9 @@ export default function Login() {
                 disabled={isLoading}
               >
                 {isLoading ? (
-                  <span>Loading...</span>
+                  <span className="flex items-center">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading...
+                  </span>
                 ) : isSignUp ? (
                   'Create Account'
                 ) : (
