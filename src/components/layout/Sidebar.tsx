@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 const sidebarLinks = [
   { icon: BarChart3, label: "Dashboard", path: "/" },
@@ -26,6 +27,7 @@ const sidebarLinks = [
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const { signOut } = useAuth();
   
   return (
     <div className={cn(
@@ -63,7 +65,11 @@ export default function Sidebar() {
       </div>
       
       <div className="p-4 border-t mt-auto">
-        <Button variant="ghost" className="w-full justify-start gap-2">
+        <Button 
+          variant="ghost" 
+          className="w-full justify-start gap-2"
+          onClick={() => signOut()}
+        >
           <LogOut size={20} />
           {!collapsed && <span>Logout</span>}
         </Button>
