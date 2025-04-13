@@ -34,7 +34,7 @@ export default function Sidebar() {
     )}>
       <div className="p-4 flex justify-between items-center border-b">
         {!collapsed && (
-          <div className="font-bold text-xl text-primary">FlowNexus</div>
+          <div className="font-bold text-xl text-primary">FranchiGo</div>
         )}
         <Button 
           variant="ghost" 
