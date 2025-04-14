@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -35,7 +34,6 @@ export default function Opportunities() {
   const [showFilters, setShowFilters] = useState(false);
   const { toast } = useToast();
 
-  // Fetch franchise opportunities
   useEffect(() => {
     const fetchOpportunities = async () => {
       try {
@@ -65,11 +63,9 @@ export default function Opportunities() {
     fetchOpportunities();
   }, [toast]);
 
-  // Apply filters
   useEffect(() => {
     let result = [...opportunities];
 
-    // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(
@@ -81,19 +77,16 @@ export default function Opportunities() {
       );
     }
 
-    // Category filter
     if (categoryFilter) {
       result = result.filter((opp) => opp.category === categoryFilter);
     }
 
-    // Investment range filter
     result = result.filter(
       (opp) =>
         (opp.investment_min >= investmentRange[0] || opp.investment_max >= investmentRange[0]) &&
         (opp.investment_min <= investmentRange[1] || opp.investment_max <= investmentRange[1])
     );
 
-    // ROI range filter
     result = result.filter(
       (opp) =>
         (opp.roi_min >= roiRange[0] || opp.roi_max >= roiRange[0]) &&
@@ -103,7 +96,6 @@ export default function Opportunities() {
     setFilteredOpportunities(result);
   }, [searchQuery, categoryFilter, investmentRange, roiRange, opportunities]);
 
-  // Get unique categories
   const categories = Array.from(new Set(opportunities.map((opp) => opp.category)));
 
   return (
@@ -194,7 +186,11 @@ export default function Opportunities() {
                       max={100}
                       step={1}
                       value={roiRange}
-                      onValueChange={setRoiRange}
+                      onValueChange={(values) => {
+                        if (values.length === 2) {
+                          setRoiRange([values[0], values[1]]);
+                        }
+                      }}
                       className="mt-6"
                     />
                     <div className="flex justify-between mt-2 text-xs text-muted-foreground">
