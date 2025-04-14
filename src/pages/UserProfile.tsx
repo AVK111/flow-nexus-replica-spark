@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,7 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Upload, FileText, User, IndianRupee } from "lucide-react";
+import { Upload, FileText, User } from "lucide-react";
 
 const profileFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -23,6 +22,14 @@ const profileFormSchema = z.object({
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
+
+interface UserDocument {
+  aadhaar_doc_url?: string | null;
+  business_exp_doc_url?: string | null;
+  business_experience?: string | null;
+  phone?: string | null;
+  address?: string | null;
+}
 
 export default function UserProfile() {
   const { user, userProfile } = useAuth();
@@ -67,18 +74,16 @@ export default function UserProfile() {
           form.setValue('lastName', profileData.last_name || '');
           
           // Get document URLs if they exist
-          const { data: storageData, error: storageError } = await supabase
-            .from('user_documents')
-            .select('*')
-            .eq('user_id', user.id)
-            .single();
+          const { data: userDoc, error: docError } = await supabase
+            .rpc('get_user_documents', { user_id_param: user.id });
             
-          if (!storageError && storageData) {
-            setAadhaarUrl(storageData.aadhaar_doc_url || null);
-            setBusinessExpUrl(storageData.business_exp_doc_url || null);
-            form.setValue('businessExperience', storageData.business_experience || '');
-            form.setValue('phone', storageData.phone || '');
-            form.setValue('address', storageData.address || '');
+          if (!docError && userDoc && userDoc.length > 0) {
+            const document = userDoc[0] as UserDocument;
+            setAadhaarUrl(document.aadhaar_doc_url || null);
+            setBusinessExpUrl(document.business_exp_doc_url || null);
+            form.setValue('businessExperience', document.business_experience || '');
+            form.setValue('phone', document.phone || '');
+            form.setValue('address', document.address || '');
           }
         }
       } catch (error) {
@@ -176,46 +181,18 @@ export default function UserProfile() {
         businessExpDocUrl = await uploadDocumentToStorage(businessExpFile, `business_exp_${user.id}`);
       }
       
-      // Check if user_documents record exists
-      const { data: existingDoc, error: checkError } = await supabase
-        .from('user_documents')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
+      // Update user documents
+      const { error: docError } = await supabase
+        .rpc('upsert_user_document', {
+          user_id_param: user.id,
+          aadhaar_doc_url_param: aadhaarDocUrl,
+          business_exp_doc_url_param: businessExpDocUrl,
+          business_experience_param: values.businessExperience,
+          phone_param: values.phone,
+          address_param: values.address
+        });
         
-      if (checkError && checkError.code !== 'PGRST116') {
-        throw checkError;
-      }
-      
-      // Update or insert document records
-      if (existingDoc) {
-        const { error: docError } = await supabase
-          .from('user_documents')
-          .update({
-            aadhaar_doc_url: aadhaarDocUrl,
-            business_exp_doc_url: businessExpDocUrl,
-            business_experience: values.businessExperience,
-            phone: values.phone,
-            address: values.address,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('user_id', user.id);
-          
-        if (docError) throw docError;
-      } else {
-        const { error: docError } = await supabase
-          .from('user_documents')
-          .insert({
-            user_id: user.id,
-            aadhaar_doc_url: aadhaarDocUrl,
-            business_exp_doc_url: businessExpDocUrl,
-            business_experience: values.businessExperience,
-            phone: values.phone,
-            address: values.address,
-          });
-          
-        if (docError) throw docError;
-      }
+      if (docError) throw docError;
       
       // Update state
       setAadhaarUrl(aadhaarDocUrl);

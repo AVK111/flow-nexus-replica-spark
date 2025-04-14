@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +14,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { IndianRupee, CheckCircle2, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { PostgrestError } from "@supabase/supabase-js";
 
 interface FranchiseOpportunity {
   id: string;
@@ -30,7 +32,17 @@ interface FranchiseOpportunity {
 interface UserDocuments {
   aadhaar_doc_url?: string;
   business_exp_doc_url?: string;
+  business_experience?: string;
+  phone?: string;
+  address?: string;
   user_id: string;
+}
+
+interface FranchiseApplication {
+  id: string;
+  user_id: string;
+  opportunity_id: string;
+  status: string;
 }
 
 const applicationFormSchema = z.object({
@@ -67,7 +79,7 @@ export default function FranchiseApplication() {
 
   useEffect(() => {
     const fetchOpportunity = async () => {
-      if (!opportunityId) return;
+      if (!opportunityId || !user) return;
       
       try {
         setLoading(true);
@@ -82,26 +94,25 @@ export default function FranchiseApplication() {
         
         setOpportunity(data as FranchiseOpportunity);
         
-        const { data: storageData, error: storageError } = await supabase
-          .from('user_documents')
-          .select('*')
-          .eq('user_id', user.id)
-          .single() as { data: UserDocuments | null, error: PostgrestError | null };
+        // Check for user documents
+        const { data: docData, error: docError } = await supabase
+          .rpc('get_user_documents', { user_id_param: user.id });
           
-        if (!storageError && storageData) {
+        if (!docError && docData && docData.length > 0) {
+          const userDocs = docData[0] as UserDocuments;
           setDocumentsUploaded(
-            !!storageData.aadhaar_doc_url && !!storageData.business_exp_doc_url
+            !!userDocs.aadhaar_doc_url && !!userDocs.business_exp_doc_url
           );
         }
         
+        // Check if application already exists
         const { data: appData, error: appError } = await supabase
-          .from('franchise_applications')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('opportunity_id', opportunityId)
-          .single();
+          .rpc('check_application_exists', { 
+            user_id_param: user.id, 
+            opportunity_id_param: opportunityId 
+          });
           
-        if (!appError && appData) {
+        if (!appError && appData && appData.length > 0) {
           setApplicationSubmitted(true);
         }
       } catch (error) {
@@ -127,17 +138,15 @@ export default function FranchiseApplication() {
       setSubmitting(true);
       
       const { error } = await supabase
-        .from('franchise_applications')
-        .insert({
-          user_id: user.id,
-          opportunity_id: opportunity.id,
-          franchisor_id: opportunity.franchisor_id,
-          investment_capacity: values.investmentCapacity,
-          preferred_location: values.preferredLocation,
-          timeframe: values.timeframe,
-          motivation: values.motivation,
-          questions: values.questions || null,
-          status: 'pending',
+        .rpc('submit_franchise_application', {
+          user_id_param: user.id,
+          opportunity_id_param: opportunity.id,
+          franchisor_id_param: opportunity.franchisor_id,
+          investment_capacity_param: values.investmentCapacity,
+          preferred_location_param: values.preferredLocation,
+          timeframe_param: values.timeframe,
+          motivation_param: values.motivation,
+          questions_param: values.questions || null
         });
         
       if (error) throw error;
