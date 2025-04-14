@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, DollarSign, TrendingUp, Building } from "lucide-react";
+import { Search, Filter, TrendingUp, Building, IndianRupee } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 interface FranchiseOpportunity {
   id: string;
@@ -29,10 +31,11 @@ export default function Opportunities() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [investmentRange, setInvestmentRange] = useState<[number, number]>([0, 1000000]);
+  const [investmentRange, setInvestmentRange] = useState<[number, number]>([0, 10000000]);
   const [roiRange, setRoiRange] = useState<[number, number]>([0, 100]);
   const [showFilters, setShowFilters] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchOpportunities = async () => {
@@ -97,6 +100,24 @@ export default function Opportunities() {
   }, [searchQuery, categoryFilter, investmentRange, roiRange, opportunities]);
 
   const categories = Array.from(new Set(opportunities.map((opp) => opp.category)));
+  
+  const handleApply = (opportunityId: string) => {
+    // Navigate to application page with opportunity ID
+    navigate(`/application/${opportunityId}`);
+    toast({
+      title: "Application Started",
+      description: "You've started the application process for this franchise opportunity.",
+    });
+  };
+
+  // Format currency in Indian Rupees
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
 
   return (
     <div className="space-y-6">
@@ -159,20 +180,20 @@ export default function Opportunities() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label>Investment Range ($ thousands)</Label>
+                  <Label>Investment Range (₹ lakhs)</Label>
                   <div className="pt-4 px-2">
                     <Slider
-                      defaultValue={[0, 1000]}
+                      defaultValue={[0, 10000]}
                       min={0}
-                      max={1000}
-                      step={10}
+                      max={10000}
+                      step={100}
                       value={[investmentRange[0] / 1000, investmentRange[1] / 1000]}
                       onValueChange={(values) => setInvestmentRange([values[0] * 1000, values[1] * 1000])}
                       className="mt-6"
                     />
                     <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-                      <span>${investmentRange[0] / 1000}K</span>
-                      <span>${investmentRange[1] / 1000}K</span>
+                      <span>₹{investmentRange[0] / 100000}L</span>
+                      <span>₹{investmentRange[1] / 100000}L</span>
                     </div>
                   </div>
                 </div>
@@ -214,7 +235,7 @@ export default function Opportunities() {
             <Button onClick={() => {
               setSearchQuery("");
               setCategoryFilter(null);
-              setInvestmentRange([0, 1000000]);
+              setInvestmentRange([0, 10000000]);
               setRoiRange([0, 100]);
             }}>Clear Filters</Button>
           </Card>
@@ -232,10 +253,10 @@ export default function Opportunities() {
                   </p>
                   <div className="grid grid-cols-2 gap-4 mt-4">
                     <div className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-[#3B1E77]" />
+                      <IndianRupee className="h-4 w-4 text-[#3B1E77]" />
                       <div>
                         <p className="text-xs text-muted-foreground">Investment</p>
-                        <p className="font-medium">${opportunity.investment_min/1000}K - ${opportunity.investment_max/1000}K</p>
+                        <p className="font-medium">₹{opportunity.investment_min/100000}L - ₹{opportunity.investment_max/100000}L</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -258,7 +279,7 @@ export default function Opportunities() {
                 </CardContent>
                 <CardFooter className="border-t pt-4 flex justify-between">
                   <Button variant="outline">View Details</Button>
-                  <Button>Apply Now</Button>
+                  <Button onClick={() => handleApply(opportunity.id)}>Apply Now</Button>
                 </CardFooter>
               </Card>
             ))}

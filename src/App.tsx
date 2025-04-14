@@ -20,6 +20,8 @@ import FranchiseeRoute from "./components/auth/FranchiseeRoute";
 import FranchisorRoute from "./components/auth/FranchisorRoute";
 import FranchiseeDashboard from "./pages/FranchiseeDashboard";
 import FranchisorDashboard from "./pages/FranchisorDashboard";
+import UserProfile from "./pages/UserProfile";
+import FranchiseApplication from "./pages/FranchiseApplication";
 
 const queryClient = new QueryClient();
 
@@ -45,8 +47,10 @@ const App = () => (
               {/* Franchisee routes */}
               <Route path="franchisee/dashboard" element={<FranchiseeRoute><FranchiseeDashboard /></FranchiseeRoute>} />
               <Route path="opportunities" element={<FranchiseeRoute><Opportunities /></FranchiseeRoute>} />
+              <Route path="application/:opportunityId" element={<FranchiseeRoute><FranchiseApplication /></FranchiseeRoute>} />
               
               {/* Common routes accessible to both roles */}
+              <Route path="profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
               <Route path="messages" element={<Messages />} />
               <Route path="settings" element={<Settings />} />
             </Route>
