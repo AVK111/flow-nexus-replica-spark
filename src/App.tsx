@@ -16,6 +16,10 @@ import Login from "./pages/Login";
 import Opportunities from "./pages/Opportunities";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
+import FranchiseeRoute from "./components/auth/FranchiseeRoute";
+import FranchisorRoute from "./components/auth/FranchisorRoute";
+import FranchiseeDashboard from "./pages/FranchiseeDashboard";
+import FranchisorDashboard from "./pages/FranchisorDashboard";
 
 const queryClient = new QueryClient();
 
@@ -29,13 +33,22 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+              {/* Default route redirects based on user role */}
               <Route index element={<Dashboard />} />
-              <Route path="franchisees" element={<Franchisees />} />
-              <Route path="territories" element={<Territories />} />
-              <Route path="leads" element={<Leads />} />
+              
+              {/* Franchisor routes */}
+              <Route path="franchisor/dashboard" element={<FranchisorRoute><FranchisorDashboard /></FranchisorRoute>} />
+              <Route path="franchisees" element={<FranchisorRoute><Franchisees /></FranchisorRoute>} />
+              <Route path="territories" element={<FranchisorRoute><Territories /></FranchisorRoute>} />
+              <Route path="leads" element={<FranchisorRoute><Leads /></FranchisorRoute>} />
+              
+              {/* Franchisee routes */}
+              <Route path="franchisee/dashboard" element={<FranchiseeRoute><FranchiseeDashboard /></FranchiseeRoute>} />
+              <Route path="opportunities" element={<FranchiseeRoute><Opportunities /></FranchiseeRoute>} />
+              
+              {/* Common routes accessible to both roles */}
               <Route path="messages" element={<Messages />} />
               <Route path="settings" element={<Settings />} />
-              <Route path="opportunities" element={<Opportunities />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

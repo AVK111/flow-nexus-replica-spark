@@ -11,7 +11,6 @@ import {
   LogOut,
   LayoutDashboard,
   Store,
-  Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -25,16 +24,15 @@ export default function Sidebar() {
   
   // Define different sidebar links based on user role
   const getFranchiseeSidebarLinks = () => [
-    { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-    { icon: Store, label: "Franchisors", path: "/opportunities" },
-    { icon: Building, label: "My Franchise", path: "/franchisees" },
+    { icon: LayoutDashboard, label: "Dashboard", path: "/franchisee/dashboard" },
+    { icon: Store, label: "Opportunities", path: "/opportunities" },
     { icon: FileText, label: "Documents", path: "/documents" },
     { icon: MessageSquare, label: "Messages", path: "/messages" },
     { icon: Settings, label: "Settings", path: "/settings" },
   ];
   
   const getFranchisorSidebarLinks = () => [
-    { icon: BarChart3, label: "Dashboard", path: "/" },
+    { icon: BarChart3, label: "Dashboard", path: "/franchisor/dashboard" },
     { icon: Users, label: "Franchisees", path: "/franchisees" },
     { icon: Building, label: "Territories", path: "/territories" },
     { icon: FileText, label: "Leads", path: "/leads" },

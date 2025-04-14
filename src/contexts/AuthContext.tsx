@@ -54,7 +54,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      setUserProfile(data);
+      setUserProfile({
+        id: data.id,
+        role: data.role as UserRole, // Cast to UserRole type
+        first_name: data.first_name,
+        last_name: data.last_name
+      });
     } catch (error) {
       console.error('Unexpected error fetching profile:', error);
     }
@@ -113,7 +118,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           title: "Login successful",
           description: "Welcome back!",
         });
-        navigate('/');
+        // We'll redirect based on role in useEffect after profile is loaded
       }
       
       return { error };
@@ -145,7 +150,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           title: "Sign up successful",
           description: "Please check your email for verification if required.",
         });
-        navigate('/');
       }
       
       return { error, data };
@@ -154,6 +158,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return { error: error as Error, data: { user: null, session: null } };
     }
   };
+
+  // Handle redirection based on user role
+  useEffect(() => {
+    if (userProfile && user) {
+      const currentPath = window.location.pathname;
+      
+      // Don't redirect on these paths
+      if (currentPath === '/login') {
+        const redirectPath = userProfile.role === 'franchisor' 
+          ? '/' 
+          : '/opportunities';
+        navigate(redirectPath);
+      }
+      
+      // Prevent franchisees from accessing franchisor routes
+      if (userProfile.role === 'franchisee' && 
+          (currentPath === '/franchisees' || currentPath === '/territories' || currentPath === '/leads')) {
+        navigate('/opportunities');
+      }
+      
+      // Prevent franchisors from accessing franchisee routes
+      if (userProfile.role === 'franchisor' && currentPath === '/opportunities') {
+        navigate('/');
+      }
+    }
+  }, [userProfile, user, navigate]);
 
   const signOut = async () => {
     try {

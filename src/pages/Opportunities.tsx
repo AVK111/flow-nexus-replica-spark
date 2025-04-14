@@ -1,376 +1,273 @@
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
-import { Building, Filter, Search, DollarSign, TrendingUp, MapPin } from "lucide-react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Slider,
-  SliderTrack,
-  SliderRange,
-  SliderThumb,
-} from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { Search, Filter, DollarSign, TrendingUp, Building } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
-// Interface for franchise opportunities
-interface Opportunity {
+interface FranchiseOpportunity {
   id: string;
-  franchisor_id: string;
   title: string;
   description: string;
-  investment_min: number | null;
-  investment_max: number | null;
-  roi_min: number | null;
-  roi_max: number | null;
+  investment_min: number;
+  investment_max: number;
+  roi_min: number;
+  roi_max: number;
   category: string;
-  location: string | null;
-  franchisor_name?: string;
-  franchisor_logo?: string;
+  location: string;
+  franchisor_id: string;
 }
 
-// Categories for filtering
-const categories = [
-  "Food & Beverage",
-  "Retail",
-  "Services",
-  "Healthcare",
-  "Education",
-  "Fitness",
-  "Technology",
-  "Automotive",
-  "Cleaning",
-  "Home Services",
-];
-
 export default function Opportunities() {
-  // Search and filter states
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [opportunities, setOpportunities] = useState<FranchiseOpportunity[]>([]);
+  const [filteredOpportunities, setFilteredOpportunities] = useState<FranchiseOpportunity[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [investmentRange, setInvestmentRange] = useState<[number, number]>([0, 1000000]);
   const [roiRange, setRoiRange] = useState<[number, number]>([0, 100]);
-  const [filteredOpportunities, setFilteredOpportunities] = useState<Opportunity[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
+  const { toast } = useToast();
 
-  // Fetch all opportunities with franchisor information
-  const { data: opportunities, isLoading, error } = useQuery({
-    queryKey: ['opportunities'],
-    queryFn: async () => {
-      // First fetch opportunities
-      const { data: opportunitiesData, error: opportunitiesError } = await supabase
-        .from('franchise_opportunities')
-        .select('*')
-        .eq('is_active', true);
-
-      if (opportunitiesError) {
-        throw opportunitiesError;
-      }
-
-      // Fetch all franchisors to get their names
-      const { data: franchisorsData, error: franchisorsError } = await supabase
-        .from('franchisors')
-        .select('id, name, logo_url');
-
-      if (franchisorsError) {
-        throw franchisorsError;
-      }
-
-      // Map franchisors to opportunities
-      const opportunitiesWithFranchisorInfo = opportunitiesData.map((opportunity) => {
-        const franchisor = franchisorsData.find(f => f.id === opportunity.franchisor_id);
-        return {
-          ...opportunity,
-          franchisor_name: franchisor?.name || 'Unknown Franchise',
-          franchisor_logo: franchisor?.logo_url || null,
-        };
-      });
-
-      return opportunitiesWithFranchisorInfo as Opportunity[];
-    }
-  });
-
-  // Apply filters when data or filters change
+  // Fetch franchise opportunities
   useEffect(() => {
-    if (!opportunities) return;
+    const fetchOpportunities = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('franchise_opportunities')
+          .select('*')
+          .eq('is_active', true);
 
-    let filtered = [...opportunities];
+        if (error) {
+          throw error;
+        }
 
-    // Apply search term filter
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        opportunity => 
-          opportunity.title.toLowerCase().includes(term) || 
-          opportunity.description.toLowerCase().includes(term) ||
-          (opportunity.franchisor_name && opportunity.franchisor_name.toLowerCase().includes(term))
+        setOpportunities(data as FranchiseOpportunity[]);
+        setFilteredOpportunities(data as FranchiseOpportunity[]);
+      } catch (error) {
+        console.error('Error fetching opportunities:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load franchise opportunities",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOpportunities();
+  }, [toast]);
+
+  // Apply filters
+  useEffect(() => {
+    let result = [...opportunities];
+
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (opp) =>
+          opp.title.toLowerCase().includes(query) ||
+          opp.description.toLowerCase().includes(query) ||
+          opp.category.toLowerCase().includes(query) ||
+          (opp.location && opp.location.toLowerCase().includes(query))
       );
     }
 
-    // Apply category filter
-    if (selectedCategory) {
-      filtered = filtered.filter(
-        opportunity => opportunity.category === selectedCategory
-      );
+    // Category filter
+    if (categoryFilter) {
+      result = result.filter((opp) => opp.category === categoryFilter);
     }
 
-    // Apply investment range filter
-    filtered = filtered.filter(opportunity => {
-      // Handle null values
-      const min = opportunity.investment_min || 0;
-      // If max is null, use min as a rough estimate
-      const max = opportunity.investment_max || min * 1.5;
-      
-      return (
-        (min >= investmentRange[0] || max >= investmentRange[0]) && 
-        (min <= investmentRange[1] || max <= investmentRange[1])
-      );
-    });
+    // Investment range filter
+    result = result.filter(
+      (opp) =>
+        (opp.investment_min >= investmentRange[0] || opp.investment_max >= investmentRange[0]) &&
+        (opp.investment_min <= investmentRange[1] || opp.investment_max <= investmentRange[1])
+    );
 
-    // Apply ROI range filter
-    filtered = filtered.filter(opportunity => {
-      // Handle null values
-      const min = opportunity.roi_min || 0;
-      // If max is null, use min as a rough estimate
-      const max = opportunity.roi_max || min * 1.5;
-      
-      return (
-        (min >= roiRange[0] || max >= roiRange[0]) && 
-        (min <= roiRange[1] || max <= roiRange[1])
-      );
-    });
+    // ROI range filter
+    result = result.filter(
+      (opp) =>
+        (opp.roi_min >= roiRange[0] || opp.roi_max >= roiRange[0]) &&
+        (opp.roi_min <= roiRange[1] || opp.roi_max <= roiRange[1])
+    );
 
-    setFilteredOpportunities(filtered);
-  }, [opportunities, searchTerm, selectedCategory, investmentRange, roiRange]);
+    setFilteredOpportunities(result);
+  }, [searchQuery, categoryFilter, investmentRange, roiRange, opportunities]);
 
-  // Format currency
-  const formatCurrency = (value: number | null) => {
-    if (value === null) return 'N/A';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0
-    }).format(value);
-  };
-
-  // Format ROI percentage
-  const formatROI = (value: number | null) => {
-    if (value === null) return 'N/A';
-    return `${value}%`;
-  };
+  // Get unique categories
+  const categories = Array.from(new Set(opportunities.map((opp) => opp.category)));
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Franchise Opportunities</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-[#3B1E77]">Franchise Opportunities</h1>
           <p className="text-muted-foreground mt-2">
-            Find the perfect franchise opportunity for your business goals
+            Discover franchise opportunities that match your investment goals and interests
           </p>
         </div>
+        <img 
+          src="/lovable-uploads/de7301c9-7c27-49e7-935c-54594b245e59.png" 
+          alt="FranchiGo Logo" 
+          className="h-16 hidden md:block" 
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Filter sidebar */}
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Filter size={18} /> Filters
-            </CardTitle>
-            <CardDescription>Refine your search</CardDescription>
+      <div className="grid grid-cols-1 gap-6">
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div className="relative flex-1 w-full">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="pl-10 w-full"
+                  placeholder="Search opportunities..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <Button 
+                variant="outline" 
+                className="flex items-center gap-2"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                <Filter size={16} />
+                <span>Filters</span>
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Category filter */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Category</label>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">All Categories</SelectItem>
-                  {categories.map(category => (
-                    <SelectItem key={category} value={category}>{category}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {/* Investment range filter */}
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm font-medium">Investment Range</label>
-                <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                  <span>{formatCurrency(investmentRange[0])}</span>
-                  <span>{formatCurrency(investmentRange[1])}</span>
+          
+          {showFilters && (
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <Label>Category</Label>
+                  <Select value={categoryFilter || ""} onValueChange={(value) => setCategoryFilter(value || null)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Categories</SelectItem>
+                      {categories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Investment Range ($ thousands)</Label>
+                  <div className="pt-4 px-2">
+                    <Slider
+                      defaultValue={[0, 1000]}
+                      min={0}
+                      max={1000}
+                      step={10}
+                      value={[investmentRange[0] / 1000, investmentRange[1] / 1000]}
+                      onValueChange={(values) => setInvestmentRange([values[0] * 1000, values[1] * 1000])}
+                      className="mt-6"
+                    />
+                    <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+                      <span>${investmentRange[0] / 1000}K</span>
+                      <span>${investmentRange[1] / 1000}K</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>ROI Range (%)</Label>
+                  <div className="pt-4 px-2">
+                    <Slider
+                      defaultValue={[0, 100]}
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={roiRange}
+                      onValueChange={setRoiRange}
+                      className="mt-6"
+                    />
+                    <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+                      <span>{roiRange[0]}%</span>
+                      <span>{roiRange[1]}%</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <Slider
-                value={[investmentRange[0], investmentRange[1]]}
-                min={0}
-                max={1000000}
-                step={10000}
-                onValueChange={(value) => setInvestmentRange([value[0], value[1]])}
-              />
-            </div>
-            
-            {/* ROI range filter */}
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm font-medium">ROI Range (%)</label>
-                <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                  <span>{roiRange[0]}%</span>
-                  <span>{roiRange[1]}%</span>
-                </div>
-              </div>
-              <Slider
-                value={[roiRange[0], roiRange[1]]}
-                min={0}
-                max={100}
-                step={1}
-                onValueChange={(value) => setRoiRange([value[0], value[1]])}
-              />
-            </div>
-            
-            <Separator />
-            
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={() => {
-                setSelectedCategory("");
-                setInvestmentRange([0, 1000000]);
-                setRoiRange([0, 100]);
-                setSearchTerm("");
-              }}
-            >
-              Reset Filters
-            </Button>
-          </CardContent>
-        </Card>
-        
-        {/* Opportunities listing */}
-        <div className="lg:col-span-3 space-y-6">
-          {/* Search bar */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-            <Input
-              placeholder="Search franchise opportunities..."
-              className="pl-10"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          
-          {/* Results count */}
-          <div className="text-sm text-muted-foreground">
-            Showing {filteredOpportunities.length} {filteredOpportunities.length === 1 ? 'opportunity' : 'opportunities'}
-          </div>
-          
-          {/* Opportunities grid */}
-          {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[1, 2, 3, 4].map(i => (
-                <Card key={i} className="opacity-50 animate-pulse">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="h-7 bg-gray-200 rounded-md"></CardTitle>
-                    <CardDescription className="h-5 bg-gray-100 rounded-md mt-2"></CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-24 bg-gray-100 rounded-md"></div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : error ? (
-            <Card className="p-6 text-center bg-red-50">
-              <p className="text-red-600">Failed to load opportunities. Please try again later.</p>
-            </Card>
-          ) : filteredOpportunities.length === 0 ? (
-            <Card className="p-6 text-center">
-              <Building className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-              <p className="text-lg font-medium">No opportunities found</p>
-              <p className="text-muted-foreground mt-1">Try adjusting your filters or search term</p>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredOpportunities.map((opportunity) => (
-                <Card key={opportunity.id} className="overflow-hidden">
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <Badge className="mb-2">{opportunity.category}</Badge>
-                        <CardTitle>{opportunity.title}</CardTitle>
-                        <CardDescription className="mt-1">
-                          By {opportunity.franchisor_name}
-                        </CardDescription>
-                      </div>
-                      {opportunity.franchisor_logo && (
-                        <div className="h-10 w-10 rounded-md overflow-hidden">
-                          <img 
-                            src={opportunity.franchisor_logo} 
-                            alt={opportunity.franchisor_name} 
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm line-clamp-3 mb-4">{opportunity.description}</p>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="flex items-center gap-1">
-                        <DollarSign size={16} className="text-muted-foreground" />
-                        <span>
-                          {opportunity.investment_min ? (
-                            <>
-                              {formatCurrency(opportunity.investment_min)}
-                              {opportunity.investment_max ? ` - ${formatCurrency(opportunity.investment_max)}` : '+'}
-                            </>
-                          ) : 'Investment N/A'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <TrendingUp size={16} className="text-muted-foreground" />
-                        <span>
-                          {opportunity.roi_min ? (
-                            <>
-                              {formatROI(opportunity.roi_min)}
-                              {opportunity.roi_max ? ` - ${formatROI(opportunity.roi_max)}` : '+'}
-                            </>
-                          ) : 'ROI N/A'}
-                        </span>
-                      </div>
-                      {opportunity.location && (
-                        <div className="flex items-center gap-1 col-span-2">
-                          <MapPin size={16} className="text-muted-foreground" />
-                          <span>{opportunity.location}</span>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                  <CardFooter>
-                    <Button className="w-full">Learn More</Button>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
+            </CardContent>
           )}
-        </div>
+        </Card>
+
+        {loading ? (
+          <div className="flex justify-center p-12">
+            <div className="animate-spin h-8 w-8 border-2 border-[#3B1E77] border-t-transparent rounded-full"></div>
+          </div>
+        ) : filteredOpportunities.length === 0 ? (
+          <Card className="p-8 text-center">
+            <p className="text-muted-foreground mb-4">No franchise opportunities match your criteria.</p>
+            <Button onClick={() => {
+              setSearchQuery("");
+              setCategoryFilter(null);
+              setInvestmentRange([0, 1000000]);
+              setRoiRange([0, 100]);
+            }}>Clear Filters</Button>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredOpportunities.map((opportunity) => (
+              <Card key={opportunity.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                <CardHeader className="bg-[#3B1E77]/5 pb-3">
+                  <CardTitle className="text-xl text-[#3B1E77]">{opportunity.title}</CardTitle>
+                  <Badge variant="outline" className="w-fit">{opportunity.category}</Badge>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
+                    {opportunity.description}
+                  </p>
+                  <div className="grid grid-cols-2 gap-4 mt-4">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-[#3B1E77]" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Investment</p>
+                        <p className="font-medium">${opportunity.investment_min/1000}K - ${opportunity.investment_max/1000}K</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-[#3B1E77]" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">ROI</p>
+                        <p className="font-medium">{opportunity.roi_min}% - {opportunity.roi_max}%</p>
+                      </div>
+                    </div>
+                  </div>
+                  {opportunity.location && (
+                    <div className="flex items-center gap-2 mt-4">
+                      <Building className="h-4 w-4 text-[#3B1E77]" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Location</p>
+                        <p className="font-medium">{opportunity.location}</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+                <CardFooter className="border-t pt-4 flex justify-between">
+                  <Button variant="outline">View Details</Button>
+                  <Button>Apply Now</Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
