@@ -10,15 +10,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { LogIn, Loader2 } from "lucide-react";
+import { LogIn, Loader2, Building, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [franchiseName, setFranchiseName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [userType, setUserType] = useState<"franchisor" | "franchisee">("franchisee");
   const { signIn, signUp } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,7 +30,13 @@ export default function Login() {
 
     try {
       if (isSignUp) {
-        const { error } = await signUp(email, password);
+        const { error } = await signUp(
+          email, 
+          password,
+          userType,
+          userType === "franchisor" ? franchiseName : undefined
+        );
+        
         if (error) {
           toast({
             title: "Sign Up Failed",
@@ -81,6 +90,39 @@ export default function Login() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {isSignUp && (
+                <Tabs defaultValue="franchisee" onValueChange={(value) => setUserType(value as "franchisor" | "franchisee")}>
+                  <TabsList className="grid w-full grid-cols-2 mb-4">
+                    <TabsTrigger value="franchisee" className="flex items-center gap-2">
+                      <User size={16} />
+                      <span>Franchisee</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="franchisor" className="flex items-center gap-2">
+                      <Building size={16} />
+                      <span>Franchisor</span>
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="franchisor" className="mt-0">
+                    <div className="space-y-2 mb-4">
+                      <label htmlFor="franchise-name" className="text-sm font-medium">
+                        Franchise Name
+                      </label>
+                      <Input
+                        id="franchise-name"
+                        type="text"
+                        placeholder="Enter your franchise business name"
+                        value={franchiseName}
+                        onChange={(e) => setFranchiseName(e.target.value)}
+                        required={userType === "franchisor"}
+                        className="w-full"
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              )}
+              
               <div className="space-y-2">
                 <label htmlFor="email" className="text-sm font-medium">
                   Email

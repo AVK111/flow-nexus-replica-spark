@@ -8,26 +8,44 @@ import {
   MessageSquare,
   Settings,
   Menu,
-  LogOut
+  LogOut,
+  LayoutDashboard,
+  Store,
+  Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 
-const sidebarLinks = [
-  { icon: BarChart3, label: "Dashboard", path: "/" },
-  { icon: Users, label: "Franchisees", path: "/franchisees" },
-  { icon: Building, label: "Territories", path: "/territories" },
-  { icon: FileText, label: "Leads", path: "/leads" },
-  { icon: MessageSquare, label: "Messages", path: "/messages" },
-  { icon: Settings, label: "Settings", path: "/settings" },
-];
-
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const { signOut } = useAuth();
+  const { signOut, userProfile } = useAuth();
+  
+  // Define different sidebar links based on user role
+  const getFranchiseeSidebarLinks = () => [
+    { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+    { icon: Store, label: "Franchisors", path: "/opportunities" },
+    { icon: Building, label: "My Franchise", path: "/franchisees" },
+    { icon: FileText, label: "Documents", path: "/documents" },
+    { icon: MessageSquare, label: "Messages", path: "/messages" },
+    { icon: Settings, label: "Settings", path: "/settings" },
+  ];
+  
+  const getFranchisorSidebarLinks = () => [
+    { icon: BarChart3, label: "Dashboard", path: "/" },
+    { icon: Users, label: "Franchisees", path: "/franchisees" },
+    { icon: Building, label: "Territories", path: "/territories" },
+    { icon: FileText, label: "Leads", path: "/leads" },
+    { icon: MessageSquare, label: "Messages", path: "/messages" },
+    { icon: Settings, label: "Settings", path: "/settings" },
+  ];
+  
+  // Determine which links to show based on user role
+  const sidebarLinks = userProfile?.role === 'franchisee' 
+    ? getFranchiseeSidebarLinks() 
+    : getFranchisorSidebarLinks();
   
   return (
     <div className={cn(

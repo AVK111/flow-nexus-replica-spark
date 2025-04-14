@@ -5,14 +5,24 @@ import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 
+type UserRole = 'franchisor' | 'franchisee';
+
+type UserProfile = {
+  id: string;
+  role: UserRole;
+  first_name: string | null;
+  last_name: string | null;
+};
+
 type AuthContextType = {
   session: Session | null;
   user: User | null;
+  userProfile: UserProfile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{
     error: Error | null;
   }>;
-  signUp: (email: string, password: string) => Promise<{
+  signUp: (email: string, password: string, role: UserRole, franchiseName?: string) => Promise<{
     error: Error | null;
     data: {
       user: User | null;
@@ -27,8 +37,28 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        return;
+      }
+
+      setUserProfile(data);
+    } catch (error) {
+      console.error('Unexpected error fetching profile:', error);
+    }
+  };
 
   useEffect(() => {
     // Set up the auth state listener FIRST
@@ -37,6 +67,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.log('Auth state changed:', event, session);
         setSession(session);
         setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          // Defer profile fetch to avoid Supabase transaction deadlock
+          setTimeout(() => {
+            fetchUserProfile(session.user.id);
+          }, 0);
+        } else {
+          setUserProfile(null);
+        }
+
+        if (event === 'SIGNED_OUT') {
+          setUserProfile(null);
+        }
+        
         setLoading(false);
       }
     );
@@ -46,6 +90,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log('Initial session check:', session);
       setSession(session);
       setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        fetchUserProfile(session.user.id);
+      }
+      
       setLoading(false);
     });
 
@@ -74,11 +123,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, role: UserRole, franchiseName?: string) => {
     try {
+      const metadata: Record<string, string> = { role };
+      
+      // Add franchise name for franchisors
+      if (role === 'franchisor' && franchiseName) {
+        metadata.franchise_name = franchiseName;
+      }
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: metadata,
+        }
       });
       
       if (!error) {
@@ -117,6 +176,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const value = {
     session,
     user,
+    userProfile,
     loading,
     signIn,
     signUp,

@@ -9,7 +9,178 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      franchise_opportunities: {
+        Row: {
+          category: string
+          created_at: string
+          description: string
+          franchisor_id: string
+          id: string
+          investment_max: number | null
+          investment_min: number | null
+          is_active: boolean | null
+          location: string | null
+          roi_max: number | null
+          roi_min: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description: string
+          franchisor_id: string
+          id?: string
+          investment_max?: number | null
+          investment_min?: number | null
+          is_active?: boolean | null
+          location?: string | null
+          roi_max?: number | null
+          roi_min?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string
+          franchisor_id?: string
+          id?: string
+          investment_max?: number | null
+          investment_min?: number | null
+          is_active?: boolean | null
+          location?: string | null
+          roi_max?: number | null
+          roi_min?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "franchise_opportunities_franchisor_id_fkey"
+            columns: ["franchisor_id"]
+            isOneToOne: false
+            referencedRelation: "franchisors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      franchisees: {
+        Row: {
+          created_at: string
+          established: string
+          franchisor_id: string
+          id: string
+          location: string
+          name: string
+          owner: string
+          revenue: string
+          status: string
+          territory: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          established: string
+          franchisor_id: string
+          id?: string
+          location: string
+          name: string
+          owner: string
+          revenue: string
+          status: string
+          territory: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          established?: string
+          franchisor_id?: string
+          id?: string
+          location?: string
+          name?: string
+          owner?: string
+          revenue?: string
+          status?: string
+          territory?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "franchisees_franchisor_id_fkey"
+            columns: ["franchisor_id"]
+            isOneToOne: false
+            referencedRelation: "franchisors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      franchisors: {
+        Row: {
+          created_at: string
+          description: string | null
+          established_year: number | null
+          id: string
+          industry: string | null
+          logo_url: string | null
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          established_year?: number | null
+          id?: string
+          industry?: string | null
+          logo_url?: string | null
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          established_year?: number | null
+          id?: string
+          industry?: string | null
+          logo_url?: string | null
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          first_name: string | null
+          id: string
+          last_name: string | null
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          first_name?: string | null
+          id: string
+          last_name?: string | null
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

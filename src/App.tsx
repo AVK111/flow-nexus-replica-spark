@@ -13,6 +13,7 @@ import Messages from "./pages/Messages";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
+import Opportunities from "./pages/Opportunities";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
@@ -34,6 +35,7 @@ const App = () => (
               <Route path="leads" element={<Leads />} />
               <Route path="messages" element={<Messages />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="opportunities" element={<Opportunities />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
