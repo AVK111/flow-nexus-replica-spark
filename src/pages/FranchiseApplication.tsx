@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +12,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { IndianRupee, CheckCircle2, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface FranchiseOpportunity {
   id: string;
@@ -25,6 +25,12 @@ interface FranchiseOpportunity {
   category: string;
   location: string;
   franchisor_id: string;
+}
+
+interface UserDocuments {
+  aadhaar_doc_url?: string;
+  business_exp_doc_url?: string;
+  user_id: string;
 }
 
 const applicationFormSchema = z.object({
@@ -66,7 +72,6 @@ export default function FranchiseApplication() {
       try {
         setLoading(true);
         
-        // Fetch opportunity details
         const { data, error } = await supabase
           .from('franchise_opportunities')
           .select('*')
@@ -77,31 +82,27 @@ export default function FranchiseApplication() {
         
         setOpportunity(data as FranchiseOpportunity);
         
-        // Check if user has uploaded documents
-        if (user) {
-          const { data: docData, error: docError } = await supabase
-            .from('user_documents')
-            .select('aadhaar_doc_url, business_exp_doc_url')
-            .eq('user_id', user.id)
-            .single();
-            
-          if (!docError && docData) {
-            setDocumentsUploaded(
-              !!docData.aadhaar_doc_url && !!docData.business_exp_doc_url
-            );
-          }
+        const { data: storageData, error: storageError } = await supabase
+          .from('user_documents')
+          .select('*')
+          .eq('user_id', user.id)
+          .single() as { data: UserDocuments | null, error: PostgrestError | null };
           
-          // Check if application already submitted
-          const { data: appData, error: appError } = await supabase
-            .from('franchise_applications')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('opportunity_id', opportunityId)
-            .single();
-            
-          if (!appError && appData) {
-            setApplicationSubmitted(true);
-          }
+        if (!storageError && storageData) {
+          setDocumentsUploaded(
+            !!storageData.aadhaar_doc_url && !!storageData.business_exp_doc_url
+          );
+        }
+        
+        const { data: appData, error: appError } = await supabase
+          .from('franchise_applications')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('opportunity_id', opportunityId)
+          .single();
+          
+        if (!appError && appData) {
+          setApplicationSubmitted(true);
         }
       } catch (error) {
         console.error('Error fetching opportunity:', error);
@@ -125,7 +126,6 @@ export default function FranchiseApplication() {
     try {
       setSubmitting(true);
       
-      // Submit application
       const { error } = await supabase
         .from('franchise_applications')
         .insert({
@@ -149,7 +149,6 @@ export default function FranchiseApplication() {
         description: "Your franchise application has been successfully submitted!",
       });
       
-      // Redirect after a delay
       setTimeout(() => {
         navigate("/opportunities");
       }, 3000);
