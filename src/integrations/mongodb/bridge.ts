@@ -5,6 +5,9 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { franchiseService } from "@/services/mongodb/franchise-service";
+import { PostgrestFilterBuilder } from "@supabase/postgrest-js";
+
+type SupabaseRpcFunction = typeof supabase.rpc;
 
 // Monkey patch the RPC functions to use MongoDB instead
 // This is a temporary solution during migration
@@ -13,7 +16,8 @@ export const setupMongoBridge = () => {
   const originalRpc = supabase.rpc;
   
   // Override rpc to intercept specific function calls
-  supabase.rpc = (functionName: string, params?: any) => {
+  // @ts-ignore - We're intentionally overriding the type here
+  supabase.rpc = function(functionName: string, params?: any): any {
     console.log(`RPC call intercepted: ${functionName}`, params);
     
     // Intercept specific RPC calls

@@ -1,386 +1,372 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "@/hooks/use-toast";
+import { franchiseService } from "@/services/mongodb/franchise-service";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { z } from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { IndianRupee, CheckCircle2, Loader2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { useAuth } from '@/contexts/AuthContext';
 
-interface FranchiseOpportunity {
-  id: string;
-  title: string;
-  description: string;
-  investment_min: number;
-  investment_max: number;
-  roi_min: number;
-  roi_max: number;
-  category: string;
-  location: string;
-  franchisor_id: string;
-}
-
-interface UserDocuments {
-  aadhaar_doc_url?: string;
-  business_exp_doc_url?: string;
-  business_experience?: string;
-  phone?: string;
-  address?: string;
-  user_id: string;
-}
-
-interface FranchiseApplication {
-  id: string;
-  user_id: string;
-  opportunity_id: string;
-  status: string;
-}
-
-const applicationFormSchema = z.object({
-  investmentCapacity: z.string().min(1, "Investment capacity is required"),
-  preferredLocation: z.string().min(1, "Preferred location is required"),
-  timeframe: z.string().min(1, "Timeframe is required"),
-  motivation: z.string().min(10, "Please provide your motivation for applying"),
-  questions: z.string().optional(),
-});
-
-type ApplicationFormValues = z.infer<typeof applicationFormSchema>;
-
-export default function FranchiseApplication() {
-  const { opportunityId } = useParams();
-  const { user } = useAuth();
-  const { toast } = useToast();
+const FranchiseApplication = () => {
+  const { opportunityId } = useParams<{ opportunityId: string }>();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [opportunity, setOpportunity] = useState<FranchiseOpportunity | null>(null);
-  const [documentsUploaded, setDocumentsUploaded] = useState(false);
-  const [applicationSubmitted, setApplicationSubmitted] = useState(false);
+  const { user } = useAuth();
 
-  const form = useForm<ApplicationFormValues>({
-    resolver: zodResolver(applicationFormSchema),
-    defaultValues: {
-      investmentCapacity: "",
-      preferredLocation: "",
-      timeframe: "",
-      motivation: "",
-      questions: "",
-    },
-  });
-
+  const [investmentCapacity, setInvestmentCapacity] = useState('');
+  const [preferredLocation, setPreferredLocation] = useState('');
+  const [timeframe, setTimeframe] = useState('');
+  const [motivation, setMotivation] = useState('');
+  const [questions, setQuestions] = useState('');
+  const [aadhaarDoc, setAadhaarDoc] = useState<File | null>(null);
+  const [businessExpDoc, setBusinessExpDoc] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [applicationExists, setApplicationExists] = useState(false);
+  const [businessExperience, setBusinessExperience] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  
   useEffect(() => {
-    const fetchOpportunity = async () => {
-      if (!opportunityId || !user) return;
+    if (!user?.id || !opportunityId) return;
+    
+    const checkApplication = async () => {
+      const exists = await franchiseService.checkApplicationExists(user.id, opportunityId);
+      setApplicationExists(exists);
       
-      try {
-        setLoading(true);
-        
-        const { data, error } = await supabase
-          .from('franchise_opportunities')
-          .select('*')
-          .eq('id', opportunityId)
-          .single();
-          
-        if (error) throw error;
-        
-        setOpportunity(data as FranchiseOpportunity);
-        
-        // Check for user documents
-        const { data: docData, error: docError } = await supabase
-          .rpc('get_user_documents', { user_id_param: user.id });
-          
-        if (!docError && docData && Array.isArray(docData) && docData.length > 0) {
-          const userDocs = docData[0] as UserDocuments;
-          setDocumentsUploaded(
-            !!userDocs.aadhaar_doc_url && !!userDocs.business_exp_doc_url
-          );
-        }
-        
-        // Check if application already exists
-        const { data: appData, error: appError } = await supabase
-          .rpc('check_application_exists', { 
-            user_id_param: user.id, 
-            opportunity_id_param: opportunityId 
-          });
-          
-        if (!appError && appData && Array.isArray(appData) && appData.length > 0) {
-          setApplicationSubmitted(true);
-        }
-      } catch (error) {
-        console.error('Error fetching opportunity:', error);
+      if (exists) {
         toast({
-          title: "Error",
-          description: "Failed to load opportunity details",
-          variant: "destructive",
+          title: "Application already submitted",
+          description: "You have already submitted an application for this opportunity.",
         });
-        navigate("/opportunities");
-      } finally {
-        setLoading(false);
       }
     };
     
-    fetchOpportunity();
-  }, [opportunityId, user, toast, navigate]);
-
-  const onSubmit = async (values: ApplicationFormValues) => {
-    if (!user || !opportunity) return;
+    checkApplication();
+  }, [user?.id, opportunityId]);
+  
+  useEffect(() => {
+    if (!user?.id) return;
     
-    try {
-      setSubmitting(true);
-      
-      const { error } = await supabase
-        .rpc('submit_franchise_application', {
-          user_id_param: user.id,
-          opportunity_id_param: opportunity.id,
-          franchisor_id_param: opportunity.franchisor_id,
-          investment_capacity_param: values.investmentCapacity,
-          preferred_location_param: values.preferredLocation,
-          timeframe_param: values.timeframe,
-          motivation_param: values.motivation,
-          questions_param: values.questions || null
-        });
-        
-      if (error) throw error;
-      
-      setApplicationSubmitted(true);
-      
-      toast({
-        title: "Application Submitted",
-        description: "Your franchise application has been successfully submitted!",
-      });
-      
-      setTimeout(() => {
-        navigate("/opportunities");
-      }, 3000);
-    } catch (error) {
-      console.error('Error submitting application:', error);
+    const fetchUserDocuments = async () => {
+      const documents = await franchiseService.getUserDocuments(user.id);
+      if (documents) {
+        setBusinessExperience(documents.business_experience || '');
+        setPhone(documents.phone || '');
+        setAddress(documents.address || '');
+      }
+    };
+    
+    fetchUserDocuments();
+  }, [user?.id]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user?.id || !opportunityId) {
       toast({
         title: "Error",
-        description: "Failed to submit application",
+        description: "User ID or Opportunity ID is missing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('franchisor_id')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) {
+        throw new Error(`Failed to fetch franchisor ID: ${profileError.message}`);
+      }
+
+      if (!profile?.franchisor_id) {
+        throw new Error('Franchisor ID is missing in user profile.');
+      }
+
+      const success = await franchiseService.submitApplication({
+        user_id: user.id,
+        opportunity_id: opportunityId,
+        franchisor_id: profile.franchisor_id,
+        investment_capacity,
+        preferred_location,
+        timeframe,
+        motivation,
+        questions,
+      });
+
+      if (success) {
+        toast({
+          title: "Application submitted",
+          description: "Your application has been submitted successfully.",
+        });
+        navigate('/opportunities');
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to submit application. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error("Application submission error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "An unexpected error occurred.",
         variant: "destructive",
       });
     } finally {
-      setSubmitting(false);
+      setIsSubmitting(false);
+    }
+  };
+  
+  const handleBusinessExpDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      const files = e.target.files as FileList;
+      if (files && files.length > 0) {
+        const file = files[0];
+        setBusinessExpDoc(file);
+        await uploadFile(file, 'business_exp_doc_url');
+      }
+    } catch (error) {
+      console.error("File upload error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to upload business experience document.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleAadhaarDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      const files = e.target.files as FileList;
+      if (files && files.length > 0) {
+        const file = files[0];
+        setAadhaarDoc(file);
+        await uploadFile(file, 'aadhaar_doc_url');
+      }
+    } catch (error) {
+      console.error("File upload error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to upload Aadhaar document.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const uploadFile = async (file: File, fieldName: string) => {
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "User ID is missing.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      const filePath = `user-documents/${user.id}/${fieldName}/${file.name}`;
+      const { data, error } = await supabase.storage
+        .from('lovable-uploads')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+      
+      if (error) {
+        throw new Error(`Failed to upload file: ${error.message}`);
+      }
+      
+      const publicURL = `https://your-supabase-url.supabase.co/storage/v1/object/public/${data.Key}`;
+      
+      // Update user_documents in MongoDB
+      await franchiseService.upsertUserDocument({
+        user_id: user.id,
+        [fieldName]: publicURL,
+        business_experience: businessExperience,
+        phone: phone,
+        address: address
+      });
+      
+      toast({
+        title: "File uploaded",
+        description: `Your ${fieldName.replace(/_/g, ' ')} has been uploaded successfully.`,
+      });
+    } catch (error: any) {
+      console.error("File upload error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to upload file.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleUpdateInfo = async () => {
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "User ID is missing.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      await franchiseService.upsertUserDocument({
+        user_id: user.id,
+        business_experience: businessExperience,
+        phone: phone,
+        address: address
+      });
+      
+      toast({
+        title: "Information updated",
+        description: "Your information has been updated successfully.",
+      });
+    } catch (error: any) {
+      console.error("Update info error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update information.",
+        variant: "destructive",
+      });
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center p-12">
-        <div className="animate-spin h-8 w-8 border-2 border-[#3B1E77] border-t-transparent rounded-full"></div>
-      </div>
-    );
-  }
-
-  if (!opportunity) {
-    return (
-      <div className="p-8 text-center">
-        <p className="text-muted-foreground mb-4">Opportunity not found or no longer available.</p>
-        <Button onClick={() => navigate("/opportunities")}>Back to Opportunities</Button>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-[#3B1E77]">Franchise Application</h1>
-        <p className="text-muted-foreground mt-2">
-          Apply for the {opportunity.title} franchise opportunity
-        </p>
-      </div>
-      
-      {applicationSubmitted ? (
-        <Card className="text-center p-8">
-          <div className="flex flex-col items-center justify-center">
-            <CheckCircle2 className="w-16 h-16 text-green-500 mb-4" />
-            <h2 className="text-2xl font-bold mb-2">Application Submitted!</h2>
-            <p className="text-muted-foreground mb-6">
-              Your application for {opportunity.title} has been successfully submitted. The franchisor will review your application and contact you soon.
-            </p>
-            <Button onClick={() => navigate("/opportunities")}>Back to Opportunities</Button>
-          </div>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Franchise Application Form</CardTitle>
-              <CardDescription>
-                Complete the form below to apply for this franchise opportunity
-              </CardDescription>
-            </CardHeader>
-            
-            {!documentsUploaded ? (
-              <CardContent className="p-8 text-center">
-                <div className="mb-4 text-amber-600">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-2">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                    <line x1="12" y1="9" x2="12" y2="13"></line>
-                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                  </svg>
-                  <h3 className="text-lg font-semibold mb-2">Documents Required</h3>
-                </div>
-                <p className="text-muted-foreground mb-6">
-                  You need to upload your Aadhaar card and business experience documents before applying.
-                </p>
-                <Button onClick={() => navigate("/profile")}>
-                  Upload Documents
-                </Button>
-              </CardContent>
-            ) : (
-              <CardContent>
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="investmentCapacity"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Investment Capacity (₹)</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Enter amount in INR" {...field} />
-                          </FormControl>
-                          <FormDescription>
-                            How much are you willing to invest in this franchise opportunity?
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="preferredLocation"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Preferred Location</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Enter city or region" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="timeframe"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Expected Timeframe</FormLabel>
-                          <FormControl>
-                            <Input placeholder="e.g., 3-6 months, 1 year" {...field} />
-                          </FormControl>
-                          <FormDescription>
-                            When do you plan to start this franchise?
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="motivation"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Motivation</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder="Why are you interested in this franchise opportunity?" 
-                              className="min-h-[120px]"
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="questions"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Questions (Optional)</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder="Any questions for the franchisor?" 
-                              className="min-h-[80px]"
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <Button type="submit" className="w-full" disabled={submitting}>
-                      {submitting ? (
-                        <span className="flex items-center">
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Submitting Application...
-                        </span>
-                      ) : (
-                        "Submit Application"
-                      )}
-                    </Button>
-                  </form>
-                </Form>
-              </CardContent>
-            )}
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xl">{opportunity.title}</CardTitle>
-              <CardDescription>
-                <Badge variant="outline" className="mt-1">{opportunity.category}</Badge>
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">{opportunity.description}</p>
-              
-              <div className="pt-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Investment Required:</span>
-                  <span className="font-medium">
-                    ₹{opportunity.investment_min/100000}L - ₹{opportunity.investment_max/100000}L
-                  </span>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Expected ROI:</span>
-                  <span className="font-medium">{opportunity.roi_min}% - {opportunity.roi_max}%</span>
-                </div>
-                
-                {opportunity.location && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Location:</span>
-                    <span className="font-medium">{opportunity.location}</span>
-                  </div>
-                )}
+    <div className="container mx-auto mt-8">
+      <Card>
+        <CardHeader>
+          <CardTitle>Franchise Application</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {applicationExists ? (
+            <p>You have already submitted an application for this opportunity.</p>
+          ) : (
+            <form onSubmit={handleSubmit} className="grid gap-4">
+              <div>
+                <Label htmlFor="investmentCapacity">Investment Capacity</Label>
+                <Input
+                  type="text"
+                  id="investmentCapacity"
+                  value={investmentCapacity}
+                  onChange={(e) => setInvestmentCapacity(e.target.value)}
+                  required
+                />
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+              <div>
+                <Label htmlFor="preferredLocation">Preferred Location</Label>
+                <Input
+                  type="text"
+                  id="preferredLocation"
+                  value={preferredLocation}
+                  onChange={(e) => setPreferredLocation(e.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="timeframe">Timeframe</Label>
+                <Select onValueChange={setTimeframe}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a timeframe" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0-6 months">0-6 months</SelectItem>
+                    <SelectItem value="6-12 months">6-12 months</SelectItem>
+                    <SelectItem value="12+ months">12+ months</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="motivation">Motivation</Label>
+                <Textarea
+                  id="motivation"
+                  value={motivation}
+                  onChange={(e) => setMotivation(e.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="questions">Questions</Label>
+                <Textarea
+                  id="questions"
+                  value={questions}
+                  onChange={(e) => setQuestions(e.target.value)}
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="businessExperience">Business Experience</Label>
+                <Textarea
+                  id="businessExperience"
+                  value={businessExperience}
+                  onChange={(e) => setBusinessExperience(e.target.value)}
+                  required
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  type="tel"
+                  id="phone"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="address">Address</Label>
+                <Input
+                  type="text"
+                  id="address"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  required
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="aadhaarDoc">Aadhaar Document</Label>
+                <Input
+                  type="file"
+                  id="aadhaarDoc"
+                  onChange={handleAadhaarDocUpload}
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="businessExpDoc">Business Experience Document</Label>
+                <Input
+                  type="file"
+                  id="businessExpDoc"
+                  onChange={handleBusinessExpDocUpload}
+                />
+              </div>
+
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Submitting..." : "Submit Application"}
+              </Button>
+              
+              <Button type="button" variant="secondary" onClick={handleUpdateInfo}>
+                Update Information
+              </Button>
+            </form>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
-}
+};
+
+export default FranchiseApplication;
