@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -77,7 +78,7 @@ export default function UserProfile() {
           const { data: userDoc, error: docError } = await supabase
             .rpc('get_user_documents', { user_id_param: user.id });
             
-          if (!docError && userDoc && userDoc.length > 0) {
+          if (!docError && userDoc && Array.isArray(userDoc) && userDoc.length > 0) {
             const document = userDoc[0] as UserDocument;
             setAadhaarUrl(document.aadhaar_doc_url || null);
             setBusinessExpUrl(document.business_exp_doc_url || null);

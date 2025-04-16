@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +13,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { IndianRupee, CheckCircle2, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { PostgrestError } from "@supabase/supabase-js";
 
 interface FranchiseOpportunity {
   id: string;
@@ -98,7 +96,7 @@ export default function FranchiseApplication() {
         const { data: docData, error: docError } = await supabase
           .rpc('get_user_documents', { user_id_param: user.id });
           
-        if (!docError && docData && docData.length > 0) {
+        if (!docError && docData && Array.isArray(docData) && docData.length > 0) {
           const userDocs = docData[0] as UserDocuments;
           setDocumentsUploaded(
             !!userDocs.aadhaar_doc_url && !!userDocs.business_exp_doc_url
@@ -112,7 +110,7 @@ export default function FranchiseApplication() {
             opportunity_id_param: opportunityId 
           });
           
-        if (!appError && appData && appData.length > 0) {
+        if (!appError && appData && Array.isArray(appData) && appData.length > 0) {
           setApplicationSubmitted(true);
         }
       } catch (error) {
