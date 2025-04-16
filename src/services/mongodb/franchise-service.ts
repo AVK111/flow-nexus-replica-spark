@@ -30,7 +30,7 @@ export interface UserDocument {
 // This service will handle both Supabase (for auth) and MongoDB (for data)
 export const franchiseService = {
   // Submit franchise application (using MongoDB instead of Supabase RPC)
-  async submitApplication(application: Omit<FranchiseApplication, 'id' | 'status' | 'created_at'>): Promise<boolean> {
+  async submitApplication(application: Omit<FranchiseApplication, 'id' | 'created_at'>): Promise<boolean> {
     try {
       // Check if user is authenticated with Supabase
       const { data: { session } } = await supabase.auth.getSession();
@@ -44,7 +44,7 @@ export const franchiseService = {
         'franchise_applications', 
         {
           ...application,
-          status: 'pending',
+          status: application.status || 'pending',
           created_at: new Date().toISOString(),
         }
       );

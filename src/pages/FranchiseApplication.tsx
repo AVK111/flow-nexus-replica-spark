@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -47,7 +46,11 @@ const FranchiseApplication = () => {
         if (error) throw error;
         
         // Check if any applications exist
-        setHasSubmittedBefore(data && data.length > 0);
+        if (data && Array.isArray(data) && data.length > 0) {
+          setHasSubmittedBefore(true);
+        } else {
+          setHasSubmittedBefore(false);
+        }
       } catch (error) {
         console.error('Error checking existing application:', error);
         toast({

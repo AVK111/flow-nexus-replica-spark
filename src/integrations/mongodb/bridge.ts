@@ -9,6 +9,13 @@ import { PostgrestFilterBuilder } from "@supabase/postgrest-js";
 
 type SupabaseRpcFunction = typeof supabase.rpc;
 
+// Define the return type for our mocked RPC functions
+interface RpcResponse<T> {
+  then: (callback: (data: { data: T | null, error: Error | null }) => any) => {
+    catch: (errorCallback: (error: Error) => any) => any;
+  };
+}
+
 // Monkey patch the RPC functions to use MongoDB instead
 // This is a temporary solution during migration
 export const setupMongoBridge = () => {
@@ -90,7 +97,8 @@ export const setupMongoBridge = () => {
             preferred_location: params.preferred_location_param,
             timeframe: params.timeframe_param,
             motivation: params.motivation_param,
-            questions: params.questions_param
+            questions: params.questions_param,
+            status: 'pending' // Adding status field to match FranchiseApplication interface
           }).then(success => {
             // Mimic Supabase response format
             callback({
