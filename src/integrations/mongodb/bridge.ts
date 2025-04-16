@@ -116,27 +116,41 @@ export const setupMongoBridge = () => {
     }
     
     if (functionName === 'upsert_user_document') {
+      // Define the parameter type to fix the TypeScript error
+      interface UserDocumentParams {
+        user_id: string;
+        aadhaar_doc_url: string;
+        business_exp_doc_url: string;
+        business_experience: string;
+        phone: string;
+        address: string;
+      }
+      
       return {
         then: (callback: any) => {
-          franchiseService.upsertUserDocument({
+          // Type cast to fix TS error
+          const typedParams: UserDocumentParams = {
             user_id: params.user_id_param,
             aadhaar_doc_url: params.aadhaar_doc_url_param,
             business_exp_doc_url: params.business_exp_doc_url_param,
             business_experience: params.business_experience_param,
             phone: params.phone_param,
             address: params.address_param
-          }).then(success => {
-            // Mimic Supabase response format
-            callback({
-              data: success ? {} : null,
-              error: success ? null : new Error('Failed to upsert user document')
+          };
+          
+          franchiseService.upsertUserDocument(typedParams)
+            .then(success => {
+              // Mimic Supabase response format
+              callback({
+                data: success ? {} : null,
+                error: success ? null : new Error('Failed to upsert user document')
+              });
+            }).catch(error => {
+              callback({
+                data: null,
+                error
+              });
             });
-          }).catch(error => {
-            callback({
-              data: null,
-              error
-            });
-          });
           
           // For chainable promises
           return {

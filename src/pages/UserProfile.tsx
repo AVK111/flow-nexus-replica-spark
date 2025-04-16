@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -10,157 +9,36 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { toast } from "@/hooks/use-toast"
-import { useNavigate } from 'react-router-dom';
-import { Separator } from "@/components/ui/separator"
-import { useToast } from "@/components/ui/use-toast"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Skeleton } from "@/components/ui/skeleton"
+} from "@/components/ui/card";
+import AvatarUpload from '@/components/profile/AvatarUpload';
+import ProfileForm from '@/components/profile/ProfileForm';
+import { useProfileUpdate } from '@/hooks/useProfileUpdate';
 
 const UserProfile = () => {
   const { user, userProfile } = useAuth();
-  const [profileData, setProfileData] = useState({
+  
+  const {
+    profileData,
+    uploading,
+    handleChange,
+    handleSubmit,
+    updateAvatarUrl
+  } = useProfileUpdate(user?.id, {
     firstName: userProfile?.first_name || '',
     lastName: userProfile?.last_name || '',
     email: user?.email || '',
     avatarUrl: user?.user_metadata.avatar_url || '',
   });
-  const [newAvatar, setNewAvatar] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const navigate = useNavigate();
-  const { toast } = useToast()
 
+  // Update profile data when user data changes
   useEffect(() => {
     if (userProfile) {
-      setProfileData({
-        firstName: userProfile.first_name || '',
-        lastName: userProfile.last_name || '',
-        email: user?.email || '',
-        avatarUrl: user?.user_metadata.avatar_url || '',
-      });
+      updateAvatarUrl(user?.user_metadata.avatar_url || '');
     }
   }, [user, userProfile]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setProfileData(prevData => ({
-      ...prevData,
-      [name]: value,
-    }));
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      const files = e.target.files as FileList;
-      if (files && files.length > 0) {
-        const file = files[0];
-        setNewAvatar(file);
-        setProfileData(prevData => ({
-          ...prevData,
-          avatarUrl: URL.createObjectURL(file),
-        }));
-      }
-    } catch (error) {
-      console.error("File upload error:", error);
-      toast({
-        title: "Upload failed",
-        description: "There was a problem uploading your avatar.",
-        variant: "destructive",
-      })
-    }
-  };
-
-  const uploadFile = async (file: File) => {
-    try {
-      setUploading(true);
-      if (!user) {
-        throw new Error("User not authenticated");
-      }
-
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      const avatarURL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/avatars/${filePath}`;
-      return avatarURL;
-    } catch (error) {
-      console.error("Avatar upload error:", error);
-      toast({
-        title: "Upload failed",
-        description: "There was a problem uploading your avatar.",
-        variant: "destructive",
-      })
-      return null;
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setUploading(true);
-      let avatarURL = profileData.avatarUrl;
-
-      if (newAvatar) {
-        const uploadedURL = await uploadFile(newAvatar);
-        if (uploadedURL) {
-          avatarURL = uploadedURL;
-        } else {
-          throw new Error("Failed to upload new avatar");
-        }
-      }
-
-      const { error } = await supabase.auth.updateUser({
-        data: {
-          avatar_url: avatarURL,
-        },
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      const { error: profileUpdateError } = await supabase
-        .from('profiles')
-        .update({
-          first_name: profileData.firstName,
-          last_name: profileData.lastName,
-        })
-        .eq('id', user?.id);
-
-      if (profileUpdateError) {
-        throw profileUpdateError;
-      }
-
-      toast({
-        title: "Profile updated",
-        description: "Your profile has been updated successfully.",
-      })
-      navigate('/profile');
-    } catch (error) {
-      console.error("Profile update error:", error);
-      toast({
-        title: "Update failed",
-        description: "There was a problem updating your profile.",
-        variant: "destructive",
-      })
-    } finally {
-      setUploading(false);
-    }
-  };
+  // Create user initials for avatar fallback
+  const userInitials = `${profileData.firstName ? profileData.firstName[0] : 'U'}${profileData.lastName ? profileData.lastName[0] : 'P'}`;
 
   return (
     <div className="container h-full mx-auto flex-col flex">
@@ -170,56 +48,20 @@ const UserProfile = () => {
           <CardDescription>Update your profile information here.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <div className="flex items-center justify-center space-x-4">
-            <Avatar className="w-24 h-24">
-              {profileData.avatarUrl ? (
-                <AvatarImage src={profileData.avatarUrl} alt="Avatar" />
-              ) : (
-                <AvatarFallback>{profileData.firstName ? profileData.firstName[0] : 'U'}{profileData.lastName ? profileData.lastName[0] : 'P'}</AvatarFallback>
-              )}
-            </Avatar>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="avatar">Avatar</Label>
-            <Input
-              id="avatar"
-              type="file"
-              accept="image/*"
-              onChange={handleFileUpload}
-              disabled={uploading}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="firstName">First Name</Label>
-            <Input
-              id="firstName"
-              name="firstName"
-              value={profileData.firstName}
-              onChange={handleChange}
-              disabled={uploading}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="lastName">Last Name</Label>
-            <Input
-              id="lastName"
-              name="lastName"
-              value={profileData.lastName}
-              onChange={handleChange}
-              disabled={uploading}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              value={profileData.email}
-              onChange={handleChange}
-              disabled
-            />
-          </div>
+          <AvatarUpload 
+            avatarUrl={profileData.avatarUrl}
+            userInitials={userInitials}
+            userId={user?.id}
+            onAvatarChange={updateAvatarUrl}
+            disabled={uploading}
+          />
+          <ProfileForm
+            firstName={profileData.firstName}
+            lastName={profileData.lastName}
+            email={profileData.email}
+            onInputChange={handleChange}
+            disabled={uploading}
+          />
         </CardContent>
         <CardFooter>
           <Button disabled={uploading} onClick={handleSubmit}>
