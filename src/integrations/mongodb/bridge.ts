@@ -1,28 +1,17 @@
-
-// This file provides a bridge between the existing Supabase RPC functions
-// and the new MongoDB service. This helps maintain backward compatibility
-// while migrating the database.
-
 import { supabase } from "@/integrations/supabase/client";
 import { franchiseService } from "@/services/mongodb/franchise-service";
-import { PostgrestFilterBuilder } from "@supabase/postgrest-js";
+import type { FranchiseApplication, UserDocument } from "@/services/mongodb/franchise-service";
 
-type SupabaseRpcFunction = typeof supabase.rpc;
-
-// Define the return type for our mocked RPC functions
+// Define a type for RPC function responses
 interface RpcResponse<T> {
-  then: (callback: (data: { data: T | null, error: Error | null }) => any) => {
-    catch: (errorCallback: (error: Error) => any) => any;
-  };
+  data: T[] | null;
+  error: Error | null;
 }
 
-// Monkey patch the RPC functions to use MongoDB instead
-// This is a temporary solution during migration
+// Setup MongoDB bridge to intercept Supabase RPC functions
 export const setupMongoBridge = () => {
-  // Store original rpc function
   const originalRpc = supabase.rpc;
   
-  // Override rpc to intercept specific function calls
   // @ts-ignore - We're intentionally overriding the type here
   supabase.rpc = function(functionName: string, params?: any): any {
     console.log(`RPC call intercepted: ${functionName}`, params);
@@ -30,12 +19,11 @@ export const setupMongoBridge = () => {
     // Intercept specific RPC calls
     if (functionName === 'check_application_exists') {
       return {
-        then: (callback: any) => {
+        then: (callback: (response: RpcResponse<{ exists: boolean }>) => void) => {
           franchiseService.checkApplicationExists(
             params.user_id_param,
             params.opportunity_id_param
           ).then(exists => {
-            // Mimic Supabase response format
             callback({
               data: exists ? [{ exists: true }] : [],
               error: null
@@ -47,10 +35,8 @@ export const setupMongoBridge = () => {
             });
           });
           
-          // For chainable promises
           return {
-            catch: (errorCallback: any) => {
-              // Handle errors
+            catch: (errorCallback: (error: Error) => void) => {
               return { then: () => {} };
             }
           };
@@ -60,10 +46,9 @@ export const setupMongoBridge = () => {
     
     if (functionName === 'get_user_documents') {
       return {
-        then: (callback: any) => {
+        then: (callback: (response: RpcResponse<UserDocument>) => void) => {
           franchiseService.getUserDocuments(params.user_id_param)
             .then(document => {
-              // Mimic Supabase response format
               callback({
                 data: document ? [document] : [],
                 error: null
@@ -75,10 +60,8 @@ export const setupMongoBridge = () => {
               });
             });
           
-          // For chainable promises
           return {
-            catch: (errorCallback: any) => {
-              // Handle errors
+            catch: (errorCallback: (error: Error) => void) => {
               return { then: () => {} };
             }
           };

@@ -11,7 +11,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { toast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
-// Fix types for investment capacity options
 type InvestmentCapacity = '< $100k' | '$100k-$250k' | '$250k-$500k' | '$500k-$1M' | '> $1M';
 type Timeframe = 'Immediate' | '3-6 months' | '6-12 months' | '1-2 years' | '2+ years';
 
@@ -20,7 +19,6 @@ const FranchiseApplication = () => {
   const { user, userProfile } = useAuth();
   const navigate = useNavigate();
   
-  // Define state variables with proper types
   const [franchisorId, setFranchisorId] = useState<string>('');
   const [investmentCapacity, setInvestmentCapacity] = useState<InvestmentCapacity>('< $100k');
   const [preferredLocation, setPreferredLocation] = useState<string>('');
@@ -31,7 +29,6 @@ const FranchiseApplication = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [hasSubmittedBefore, setHasSubmittedBefore] = useState<boolean>(false);
 
-  // Check if user has already applied for this opportunity
   useEffect(() => {
     const checkExistingApplication = async () => {
       try {
@@ -41,16 +38,11 @@ const FranchiseApplication = () => {
         const { data, error } = await supabase.rpc('check_application_exists', {
           user_id_param: user.id,
           opportunity_id_param: opportunityId
-        });
+        }) as { data: Array<{ exists: boolean }> | null, error: Error | null };
         
         if (error) throw error;
         
-        // Check if any applications exist
-        if (data && Array.isArray(data) && data.length > 0) {
-          setHasSubmittedBefore(true);
-        } else {
-          setHasSubmittedBefore(false);
-        }
+        setHasSubmittedBefore(Boolean(data && data.length > 0));
       } catch (error) {
         console.error('Error checking existing application:', error);
         toast({
@@ -66,14 +58,12 @@ const FranchiseApplication = () => {
     checkExistingApplication();
   }, [user, opportunityId]);
 
-  // Get franchisor ID for the opportunity
   useEffect(() => {
     const getFranchisorId = async () => {
       try {
         if (!opportunityId) return;
         
         setIsLoading(true);
-        // Query opportunities to get the franchisor_id
         const { data, error } = await supabase
           .from('franchise_opportunities')
           .select('franchisor_id')
@@ -133,7 +123,6 @@ const FranchiseApplication = () => {
         description: "Your application has been successfully submitted.",
       });
       
-      // Redirect to opportunities page
       navigate('/opportunities');
     } catch (error) {
       console.error('Error submitting application:', error);
@@ -147,7 +136,6 @@ const FranchiseApplication = () => {
     }
   };
 
-  // Handle document upload
   const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>, docType: string) => {
     try {
       const files = e.target.files;
@@ -164,7 +152,6 @@ const FranchiseApplication = () => {
       
       if (uploadError) throw uploadError;
       
-      // Use the correct property (path) to generate the full URL
       const fileUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${filePath}`;
       
       toast({

@@ -1,4 +1,3 @@
-
 import { mongoClient } from "@/integrations/mongodb/client";
 import { supabase } from "@/integrations/supabase/client";
 
